@@ -55,7 +55,7 @@ export default function Sidebar({
                     onSelectSport(s.key);
                     onSelectLeague(null);
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2 text-left rounded-md active:scale-[0.99]
+                  className={`w-full flex items-center justify-between px-3 py-2 text-left  active:scale-[0.99]
                     transition-[border-color,background-color,color] duration-300 ease-in-out border-l-4
                     ${
                       isActive
@@ -78,15 +78,11 @@ export default function Sidebar({
                         />
                       )}
                     </span>
-                    <span className="text-[13px] font-semibold">{s.label}</span>
+                    <span className="text-[13px] capitalize font-semibold">{s.label}</span>
                   </span>
 
                   <span
-                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded min-w-[2rem] text-center ${
-                      s.live
-                        ? 'bg-green-500 text-black'
-                        : 'bg-white/10 text-white/60'
-                    }`}
+                    className="text-[10px] font-bold px-1.5 py-0.5  min-w-[2rem] text-center"
                   >
                     {s.badge}
                   </span>
@@ -100,15 +96,15 @@ export default function Sidebar({
                         onClick={() =>
                           onSelectLeague(l.key === '__ALL__' ? null : l.key)
                         }
-                        className={`flex items-center justify-between text-left rounded px-2 py-1 text-[12px]
+                        className={`flex items-center justify-between text-left  px-2 py-1 text-[12px]
                           ${
                             (selectedLeague ?? '__ALL__') === l.key
-                              ? 'bg-yellow/10 text-white font-semibold border border-yellow/50'
+                              ? 'bg-gray/50 text-white font-semibold'
                               : 'text-white/70 hover:text-white hover:bg-white/5'
                           }`}
                       >
                         <span className="truncate pr-2">{l.label}</span>
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded min-w-[2rem] text-center bg-white/10 text-white/60">
+                        <span className="text-[10px] font-bold px-1.5 py-0.5  min-w-[2rem] text-center  text-white">
                           {l.count}
                         </span>
                       </button>
@@ -126,7 +122,7 @@ export default function Sidebar({
               onSelectSport(FAV_KEY);
               onSelectLeague(null);
             }}
-            className={`w-full flex items-center justify-between px-3 py-2 text-left rounded-md active:scale-[0.99]
+            className={`w-full flex items-center justify-between px-3 py-2 text-left  active:scale-[0.99]
               transition-[border-color,background-color,color] duration-300 ease-in-out border-l-4
               ${
                 selectedSport === FAV_KEY
@@ -150,7 +146,7 @@ export default function Sidebar({
             </span>
 
             {/* 🔥 THIS BADGE MUST USE favouriteCount */}
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded min-w-[2rem] text-center bg-white/10 text-white/60">
+            <span className="text-[10px] font-bold px-1.5 py-0.5  min-w-[2rem] text-center  text-white">
               {favouriteCount}
             </span>
           </button>

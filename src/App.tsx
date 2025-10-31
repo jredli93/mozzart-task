@@ -22,12 +22,12 @@ export default function App() {
     setSortOption,
     newMatchIdsRef,
 
-    // 🔴 this is new from the updated hook:
+    // red-flash ids
     removalIds,
 
-    // favourites
-    favMatchIds,
-    toggleFavourite,
+    // ✅ favourites now use composite keys
+    favMatchKeys,
+    toggleFavourite, // (match: Match) => void
   } = useMatches();
 
   return (
@@ -56,7 +56,8 @@ export default function App() {
           setSelectedLeague(null);
         }}
         onSelectLeague={setSelectedLeague}
-        favouriteCount={favMatchIds.length}
+        // ✅ use composite-key count
+        favouriteCount={favMatchKeys.length}
       />
 
       <main className="pt-[4rem] md:pt-16 md:ml-[240px] relative z-10">
@@ -73,8 +74,9 @@ export default function App() {
           matches={visibleMatches}
           loading={loading}
           newMatchIdsRef={newMatchIdsRef}
-          removalIds={removalIds} // 👈 pass the red-flash ids
-          favMatchIds={favMatchIds}
+          removalIds={removalIds}
+          // ✅ pass composite-key favourites and the full-match toggle handler
+          favMatchKeys={favMatchKeys}
           onToggleFavourite={toggleFavourite}
         />
       </main>

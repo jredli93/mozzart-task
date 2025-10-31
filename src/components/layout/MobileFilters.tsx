@@ -51,7 +51,7 @@ export default function MobileFilters({
             transition-colors duration-200 active:scale-[0.98]
             ${
               selectedSport === s.key
-                ? 'border-yellow bg-yellow/10 text-white font-semibold'
+                ? 'border-yellow bg-gray/10 text-white font-semibold'
                 : 'border-white/10 bg-[#2a314b] text-white/80'
             }`}
           >
@@ -70,10 +70,7 @@ export default function MobileFilters({
               </span>
             </span>
             <span
-              className={`text-[10px] font-bold px-1.5 py-0.5 rounded min-w-[2rem] text-center
-              ${
-                s.live ? 'bg-green-500 text-black' : 'bg-white/10 text-white/60'
-              }`}
+              className="text-[10px] font-bold px-1.5 py-0.5 text-white min-w-[2rem] text-center"
             >
               {s.badge}
             </span>
@@ -102,7 +99,7 @@ export default function MobileFilters({
                 transition-colors duration-200 active:scale-[0.98]
                 ${
                   (selectedLeague ?? '__ALL__') === l.key
-                    ? 'border-yellow bg-yellow/10 text-white font-semibold'
+                    ? 'bg-gray/10 text-white font-semibold'
                     : 'border-white/10 bg-[#2a314b] text-white/80'
                 }`}
               >

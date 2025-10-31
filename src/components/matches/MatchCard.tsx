@@ -1,15 +1,15 @@
 import type { Match } from '../../types/match';
 import {
-  safeScore,
-  formatMatchTime,
-  shortLastUpdated,
+  formatBottomLeft,
+  statusLabel,
 } from '../../utils/formatters';
-import Fav from '../../assets/star.png';
+import StarFull from '../../assets/star-full.png';
+import StarEmpty from '../../assets/star-empty.png';
 
 interface MatchCardProps {
   match: Match;
   isNew?: boolean;
-  isRemoved?: boolean; // 👈 NEW
+  isRemoved?: boolean;
   isFavourite: boolean;
   onToggleFavourite: () => void;
 }
@@ -21,12 +21,20 @@ export default function MatchCard({
   isFavourite,
   onToggleFavourite,
 }: MatchCardProps) {
-  const isLive = match.status?.toLowerCase().includes('live');
+  // const isLive = match.status?.toLowerCase().includes('live');
+
+  const statusText = statusLabel(match.status, match.matchTime);
+  const statusClass =
+    statusText === 'LIVE'
+      ? 'text-green-400'
+      : statusText === 'UPCOMING'
+      ? 'text-yellow-400'
+      : 'text-white/50';
 
   return (
     <article
       className={[
-        'border border-white/10 p-4 rounded-xl bg-[#1e253b] transition-all duration-500',
+        'border border-white/10 p-4 bg-[#1e253b] transition-all duration-500',
         isNew ? 'new-match-anim' : '',
         isRemoved ? 'removed-match-anim' : '',
       ].join(' ')}
@@ -40,31 +48,17 @@ export default function MatchCard({
         </div>
 
         <div className="flex items-start gap-2">
-          <div className="text-[10px] font-semibold leading-[1.2]">
-            {isLive ? (
-              <span className="text-green-400">LIVE</span>
-            ) : (
-              <span className="text-white/40">{match.status}</span>
-            )}
-          </div>
-
-          {/* favourite toggle */}
+        
+          {/* favourite toggle with two images */}
           <button
             onClick={onToggleFavourite}
-            className={`shrink-0 h-5 w-5 rounded flex items-center justify-center border transition
-              ${
-                isFavourite
-                  ? 'border-yellow bg-yellow/20'
-                  : 'border-white/20 hover:border-yellow hover:bg-white/10'
-              }`}
+            className="shrink-0 h-5 w-5 flex items-center justify-center transition"
             title={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
           >
             <img
-              src={Fav}
-              alt="fav-toggle"
-              className={`h-3.5 w-3.5 object-contain ${
-                isFavourite ? '' : 'opacity-50'
-              }`}
+              src={isFavourite ? StarFull : StarEmpty}
+              alt="favourite"
+              className="h-3.5 w-3.5 object-contain"
             />
           </button>
         </div>
@@ -73,24 +67,23 @@ export default function MatchCard({
       <div className="flex items-center justify-between text-white font-semibold text-sm">
         <span className="truncate">{match.homeTeam}</span>
         <span className="text-lg tabular-nums">
-          {safeScore(match.homeScore)}
+          {match.homeScore}
         </span>
       </div>
 
       <div className="flex items-center justify-between text-white font-semibold text-sm">
         <span className="truncate">{match.awayTeam}</span>
         <span className="text-lg tabular-nums">
-          {safeScore(match.awayScore)}
+          {match.awayScore}
         </span>
       </div>
 
+      {/* Bottom row: LEFT full date / minutes / '-' ; RIGHT status text */}
       <div className="mt-3 flex items-center justify-between text-[11px]">
-        <span className="text-green-400 font-medium">
-          {formatMatchTime(match.status, match.matchTime)}
+        <span className="text-white/80 font-medium">
+          {formatBottomLeft(match.status, match.matchTime)}
         </span>
-        <span className="text-white/30">
-          {shortLastUpdated(match.lastUpdated)}
-        </span>
+        <span className={statusClass}>{statusText}</span>
       </div>
     </article>
   );

@@ -12,22 +12,34 @@ export type SortOption =
 
 const FAV_MATCHES_KEY = '__FAV_MATCH_IDS__';
 
-export function useMatches() {
-  // This is the list you actually render in the UI
-  const [matches, setMatches] = useState<Match[]>([]);
+// 👇 Stable alphabetical comparator (A–Z) with sensible tie-breakers
+function cmpAlphaAsc(a: Match, b: Match) {
+  let cmp = a.homeTeam.localeCompare(b.homeTeam);
+  if (cmp) return cmp;
+  cmp = a.awayTeam.localeCompare(b.awayTeam);
+  if (cmp) return cmp;
+  cmp = (a.league ?? '').localeCompare(b.league ?? '');
+  if (cmp) return cmp;
+  return String(a.id).localeCompare(String(b.id));
+}
 
-  // Filters / UI state
+// 👇 Helper: build composite key (id + matchTime)
+function compositeKey(m: Match | { id: string | number; matchTime?: string }) {
+  const id = String(m.id);
+  const t = m.matchTime ? new Date(m.matchTime).toISOString() : '';
+  return `${id}_${t}`;
+}
+
+export function useMatches() {
+  const [matches, setMatches] = useState<Match[]>([]);
   const [selectedSport, setSelectedSport] = useState<string | null>(null);
   const [selectedLeague, setSelectedLeague] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortOption, setSortOption] = useState<SortOption>('timeAsc');
-
-  // Loading / error
-  const [error, setError] = useState<string | null>(null);
+  const [sortOption, setSortOption] = useState<SortOption>('alpha');
   const [loading, setLoading] = useState(true);
 
-  // Favourites
-  const [favMatchIdsRaw, setFavMatchIdsRaw] = useState<string[]>(() => {
+  // Favourites stored as composite keys
+  const [favMatchKeysRaw, setFavMatchKeysRaw] = useState<string[]>(() => {
     try {
       const raw = localStorage.getItem(FAV_MATCHES_KEY);
       return raw ? (JSON.parse(raw) as string[]) : [];
@@ -36,38 +48,26 @@ export function useMatches() {
     }
   });
 
-  // === Animation bookkeeping ===
-
-  // Previous list of IDs from last successful poll
   const prevIdsRef = useRef<string[]>([]);
-
-  // Green "new match" animation: ref is fine (not needed for rerender)
   const newMatchIdsRef = useRef<string[]>([]);
-
-  // Red "about to be removed" animation:
-  // this MUST be React state so MatchList/MatchCard re-render with red class
   const [removalIds, setRemovalIds] = useState<string[]>([]);
-
-  // Keep last good data if API returns empty glitch
   const lastGoodRef = useRef<Match[]>([]);
-
-  // Polling interval ref
   const pollRef = useRef<number | null>(null);
 
   // Persist favourites
   useEffect(() => {
-    localStorage.setItem(FAV_MATCHES_KEY, JSON.stringify(favMatchIdsRaw));
-  }, [favMatchIdsRaw]);
+    localStorage.setItem(FAV_MATCHES_KEY, JSON.stringify(favMatchKeysRaw));
+  }, [favMatchKeysRaw]);
 
-  // Toggle favourite
-  const toggleFavourite = useCallback((matchId: string | number) => {
-    const idStr = String(matchId);
-    setFavMatchIdsRaw(prev =>
-      prev.includes(idStr) ? prev.filter(id => id !== idStr) : [...prev, idStr]
+  // --- Toggle favourite ---
+  const toggleFavourite = useCallback((match: Match) => {
+    const key = compositeKey(match);
+    setFavMatchKeysRaw(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
     );
   }, []);
 
-  // Polling logic
+  // --- Polling logic ---
   const fetchMatches = useCallback(async () => {
     try {
       const res = await fetch(API_URL, {
@@ -79,8 +79,6 @@ export function useMatches() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       let data = await res.json();
-
-      // normalize backend response shape
       if (Array.isArray(data.matches)) data = data.matches;
       else if (Array.isArray(data.data)) data = data.data;
       if (!Array.isArray(data)) data = [];
@@ -90,17 +88,11 @@ export function useMatches() {
       if (incomingMatches.length > 0) {
         const incomingIds = incomingMatches.map(m => String(m.id));
         const prevIds = prevIdsRef.current;
-
-        // Detect new matches
         const newOnes = incomingIds.filter(id => !prevIds.includes(id));
-
-        // Detect removed matches
         const goneOnes = prevIds.filter(id => !incomingIds.includes(id));
-
-        // Snapshot for next diff
         prevIdsRef.current = incomingIds;
 
-        // Handle NEW matches (green flash)
+        // NEW (green)
         if (newOnes.length > 0) {
           newMatchIdsRef.current = [...newMatchIdsRef.current, ...newOnes];
           setTimeout(() => {
@@ -110,31 +102,19 @@ export function useMatches() {
           }, 1000);
         }
 
-        // Handle REMOVED matches (red flash)
+        // REMOVED (red)
         if (goneOnes.length > 0) {
-          // 1. Mark these IDs as "removal in progress"
           setRemovalIds(goneOnes);
-
-          // 2. Keep showing the OLD matches array for 1s
-          //    so those soon-to-be-removed cards are still rendered.
-          //    They will get the red CSS class because removalIds changed.
-
-          // 3. After 1s, actually replace matches with the incoming list,
-          //    and clear the red state.
           setTimeout(() => {
             setRemovalIds([]);
-            setMatches(incomingMatches);
+            setMatches([...incomingMatches].sort(cmpAlphaAsc));
           }, 1000);
         } else {
-          // No removals → we can immediately sync matches
-          setMatches(incomingMatches);
+          setMatches([...incomingMatches].sort(cmpAlphaAsc));
         }
 
-        // Save last good for fallback
         lastGoodRef.current = incomingMatches;
-        setError(null);
-
-        // Pick default sport on first load
+        
         if (!selectedSport && incomingMatches.length > 0) {
           const firstFootball = incomingMatches.find(m => isFootball(m.sport));
           setSelectedSport(
@@ -144,23 +124,22 @@ export function useMatches() {
           );
         }
       } else {
-        // API gave empty -> fallback to last good data
-        setMatches(lastGoodRef.current);
-        setError('Source returned empty data');
+        setMatches(
+          lastGoodRef.current.length
+            ? [...lastGoodRef.current].sort(cmpAlphaAsc)
+            : []
+        );
       }
 
       setLoading(false);
     } catch (err: any) {
-      setError(err.message || 'Failed to load');
       setLoading(false);
     }
   }, [selectedSport]);
 
-  // Start/stop polling on mount/unmount
   useEffect(() => {
     fetchMatches();
     pollRef.current = window.setInterval(fetchMatches, POLL_INTERVAL);
-
     return () => {
       if (pollRef.current !== null) {
         clearInterval(pollRef.current);
@@ -169,25 +148,25 @@ export function useMatches() {
     };
   }, [fetchMatches]);
 
-  // Build a set of live IDs for pruning favourites
-  const liveIdSet = useMemo(() => {
-    return new Set(matches.map(m => String(m.id)));
+  // Build live key set for visible matches
+  const liveKeySet = useMemo(() => {
+    return new Set(matches.map(m => compositeKey(m)));
   }, [matches]);
 
-  // Favourites that are still visible in feed
-  const favMatchIds = useMemo(() => {
-    return favMatchIdsRaw.filter(id => liveIdSet.has(id));
-  }, [favMatchIdsRaw, liveIdSet]);
+  // Filter favourites that are still visible
+  const favMatchKeys = useMemo(() => {
+    return favMatchKeysRaw.filter(k => liveKeySet.has(k));
+  }, [favMatchKeysRaw, liveKeySet]);
 
-  // Prune dead favourites so the sidebar count stays accurate
+  // Prune old favourites
   useEffect(() => {
-    if (favMatchIds.length !== favMatchIdsRaw.length) {
-      setFavMatchIdsRaw(favMatchIds);
+    if (favMatchKeys.length !== favMatchKeysRaw.length) {
+      setFavMatchKeysRaw(favMatchKeys);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [favMatchIds]);
+  }, [favMatchKeys]);
 
-  // Sidebar data: sports
+  // --- SPORTS (football first) ---
   const sports = useMemo(() => {
     const acc: {
       key: string;
@@ -202,9 +181,7 @@ export function useMatches() {
       const found = acc.find(s => s.key === sportKey);
       if (found) {
         found.total += 1;
-        if (match.status?.toLowerCase().includes('live')) {
-          found.live += 1;
-        }
+        if (match.status?.toLowerCase().includes('live')) found.live += 1;
       } else {
         acc.push({
           key: sportKey,
@@ -216,16 +193,26 @@ export function useMatches() {
       }
     }
 
-    return acc.map(s => ({
+    const list = acc.map(s => ({
       key: s.key,
       label: s.label,
       badge: String(s.total),
       live: s.live > 0,
       icon: s.icon,
     }));
+
+    const footballIndex = list.findIndex(s =>
+      s.key.toLowerCase().includes('foot')
+    );
+    if (footballIndex > 0) {
+      const [footballItem] = list.splice(footballIndex, 1);
+      list.unshift(footballItem);
+    }
+
+    return list;
   }, [matches]);
 
-  // Sidebar data: leagues
+  // --- LEAGUES (A–Z, "All" first) ---
   const leagues = useMemo(() => {
     if (!selectedSport || selectedSport === FAV_KEY) return [];
 
@@ -246,32 +233,27 @@ export function useMatches() {
       }
     }
 
+    leagueStats.sort((a, b) => a.label.localeCompare(b.label));
+
     return [
       { key: '__ALL__', label: 'All', count: filtered.length },
       ...leagueStats,
     ];
   }, [matches, selectedSport]);
 
-  // UI-visible list (filters + search + sort)
+  // --- VISIBLE MATCHES ---
   const visibleMatches = useMemo(() => {
     let base = matches;
 
-    // "Favourites" pseudo-sport
     if (selectedSport === FAV_KEY) {
-      base = base.filter(m => favMatchIds.includes(String(m.id)));
+      base = base.filter(m => favMatchKeys.includes(compositeKey(m)));
     } else {
-      // filter by sport
-      if (selectedSport) {
-        base = base.filter(m => m.sport === selectedSport);
-      }
-
-      // filter by league
+      if (selectedSport) base = base.filter(m => m.sport === selectedSport);
       if (selectedLeague && selectedLeague !== '__ALL__') {
         base = base.filter(m => m.league === selectedLeague);
       }
     }
 
-    // search filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       base = base.filter(
@@ -282,7 +264,6 @@ export function useMatches() {
       );
     }
 
-    // apply sort
     const sorted = [...base];
     switch (sortOption) {
       case 'timeAsc':
@@ -298,10 +279,10 @@ export function useMatches() {
         );
         break;
       case 'alpha':
-        sorted.sort((a, b) => a.homeTeam.localeCompare(b.homeTeam));
+        sorted.sort(cmpAlphaAsc);
         break;
       case 'alphaDesc':
-        sorted.sort((a, b) => b.homeTeam.localeCompare(a.homeTeam));
+        sorted.sort((a, b) => -cmpAlphaAsc(a, b));
         break;
       case 'status':
         sorted.sort((a, b) => a.status.localeCompare(b.status));
@@ -311,7 +292,7 @@ export function useMatches() {
     return sorted;
   }, [
     matches,
-    favMatchIds,
+    favMatchKeys,
     selectedSport,
     selectedLeague,
     searchQuery,
@@ -323,26 +304,17 @@ export function useMatches() {
     sports,
     leagues,
     loading,
-    error,
-
     selectedSport,
     setSelectedSport,
-
     selectedLeague,
     setSelectedLeague,
-
     searchQuery,
     setSearchQuery,
-
     sortOption,
     setSortOption,
-
-    // animations/indicators
-    newMatchIdsRef, // green flash list (ref)
-    removalIds, // red flash list (state)
-
-    // favourites
-    favMatchIds,
+    newMatchIdsRef,
+    removalIds,
+    favMatchKeys,
     toggleFavourite,
   };
 }
