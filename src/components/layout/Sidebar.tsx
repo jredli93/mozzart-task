@@ -142,7 +142,7 @@ export default function Sidebar({
                   className="h-6 w-6 object-contain"
                 />
               </span>
-              <span className="text-[13px] font-semibold">Favourite</span>
+              <span className="text-[13px] font-semibold">Favorites</span>
             </span>
 
             {/* 🔥 THIS BADGE MUST USE favouriteCount */}

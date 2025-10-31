@@ -65,7 +65,7 @@ export default function MobileFilters({
                   />
                 ) : null}
               </span>
-              <span className="text-[12px] font-semibold leading-4">
+              <span className="text-[12px] capitalize font-semibold leading-4">
                 {s.label}
               </span>
             </span>

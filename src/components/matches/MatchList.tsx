@@ -9,19 +9,14 @@ interface Props {
   loading: boolean;
   newMatchIdsRef?: React.MutableRefObject<string[]>;
   removalIds: string[];
-  // ✅ favourites now stored as composite keys: `${id}_${ISO(matchTime)}`
   favMatchKeys: string[];
-  // ✅ pass full match so the hook can build the composite key internally
   onToggleFavourite: (match: Match) => void;
 }
 
 /** 1 col on mobile, 3 cols on md+ */
 function useResponsiveCols() {
   const [cols, setCols] = useState<number>(() =>
-    typeof window !== 'undefined' &&
-    window.matchMedia('(min-width: 768px)').matches
-      ? 3
-      : 1
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches ? 3 : 1
   );
 
   useEffect(() => {
@@ -43,12 +38,11 @@ function useResponsiveCols() {
 function buildRows<T>(items: T[], cols: number): T[][] {
   if (cols <= 1) return items.map(i => [i]);
   const rows: T[][] = [];
-  for (let i = 0; i < items.length; i += cols)
-    rows.push(items.slice(i, i + cols));
+  for (let i = 0; i < items.length; i += cols) rows.push(items.slice(i, i + cols));
   return rows;
 }
 
-// Small helper to mirror the composite key format used in the hook/localStorage
+// Mirror composite key used elsewhere
 const compositeKey = (m: Match) =>
   `${String(m.id)}_${m.matchTime ? new Date(m.matchTime).toISOString() : ''}`;
 
@@ -60,7 +54,6 @@ export default function MatchList({
   favMatchKeys,
   onToggleFavourite,
 }: Props) {
-  // ✅ HOOKS FIRST — NO EARLY RETURNS ABOVE THIS LINE
   const cols = useResponsiveCols();
   const parentRef = useRef<HTMLDivElement | null>(null);
 
@@ -75,7 +68,6 @@ export default function MatchList({
     overscan: 6,
   });
 
-  // ✅ RETURNS AFTER HOOKS
   if (loading) {
     return (
       <section className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
@@ -95,9 +87,7 @@ export default function MatchList({
       ref={parentRef}
       className="relative h-[calc(100vh-12rem)] md:h-[calc(100vh-10rem)] overflow-auto p-4"
     >
-      <div
-        style={{ height: rowVirtualizer.getTotalSize(), position: 'relative' }}
-      >
+      <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative' }}>
         {rowVirtualizer.getVirtualItems().map(virtualRow => {
           const rowItems = rows[virtualRow.index];
           return (
@@ -119,7 +109,7 @@ export default function MatchList({
                   const isFav = favMatchKeys.includes(key);
                   return (
                     <MatchCard
-                      key={key} // ✅ use composite key to avoid collisions
+                      key={key}
                       match={m}
                       isNew={
                         Array.isArray(newMatchIdsRef?.current) &&
@@ -127,7 +117,7 @@ export default function MatchList({
                       }
                       isRemoved={removalIds.includes(String(m.id))}
                       isFavourite={isFav}
-                      onToggleFavourite={() => onToggleFavourite(m)} // ✅ pass full match
+                      onToggleFavourite={() => onToggleFavourite(m)}
                     />
                   );
                 })}

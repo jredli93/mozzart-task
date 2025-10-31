@@ -12,7 +12,37 @@ export type SortOption =
 
 const FAV_MATCHES_KEY = '__FAV_MATCH_IDS__';
 
-// 👇 Stable alphabetical comparator (A–Z) with sensible tie-breakers
+// ---------- tiny retry helpers (inline; no extra files) ----------
+async function fetchJsonSimple<T>(url: string, init?: RequestInit) {
+  const res = await fetch(url, init);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as T;
+}
+
+/** Minimal exponential backoff with full jitter (AWS style) */
+async function retry<T>(
+  fn: () => Promise<T>,
+  attempts = 4, // total attempts
+  baseMs = 400, // 400, 800, 1600, ...
+  capMs = 4000 // cap backoff
+): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (i === attempts - 1) break;
+      const maxDelay = Math.min(capMs, baseMs * 2 ** i);
+      const delay = Math.floor(Math.random() * maxDelay); // full jitter
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error('Retry failed');
+}
+// -----------------------------------------------------------------
+
+// Stable alphabetical comparator (A–Z) with sensible tie-breakers
 function cmpAlphaAsc(a: Match, b: Match) {
   let cmp = a.homeTeam.localeCompare(b.homeTeam);
   if (cmp) return cmp;
@@ -23,7 +53,7 @@ function cmpAlphaAsc(a: Match, b: Match) {
   return String(a.id).localeCompare(String(b.id));
 }
 
-// 👇 Helper: build composite key (id + matchTime)
+// Composite key (id + matchTime)
 function compositeKey(m: Match | { id: string | number; matchTime?: string }) {
   const id = String(m.id);
   const t = m.matchTime ? new Date(m.matchTime).toISOString() : '';
@@ -53,13 +83,14 @@ export function useMatches() {
   const [removalIds, setRemovalIds] = useState<string[]>([]);
   const lastGoodRef = useRef<Match[]>([]);
   const pollRef = useRef<number | null>(null);
+  const inFlightRef = useRef(false); // avoid overlapping polls
 
   // Persist favourites
   useEffect(() => {
     localStorage.setItem(FAV_MATCHES_KEY, JSON.stringify(favMatchKeysRaw));
   }, [favMatchKeysRaw]);
 
-  // --- Toggle favourite ---
+  // Toggle favourite
   const toggleFavourite = useCallback((match: Match) => {
     const key = compositeKey(match);
     setFavMatchKeysRaw(prev =>
@@ -67,23 +98,31 @@ export function useMatches() {
     );
   }, []);
 
-  // --- Polling logic ---
+  // Polling logic + minimal retry
   const fetchMatches = useCallback(async () => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+
     try {
-      const res = await fetch(API_URL, {
-        headers: {
-          'Content-Type': 'application/json',
-          username: 'redlijovan@gmail.com',
-        },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      type ApiResponse = { matches?: Match[]; data?: Match[] } | Match[];
 
-      let data = await res.json();
-      if (Array.isArray(data.matches)) data = data.matches;
-      else if (Array.isArray(data.data)) data = data.data;
-      if (!Array.isArray(data)) data = [];
+      const data = await retry(() =>
+        fetchJsonSimple<ApiResponse>(API_URL, {
+          headers: {
+            'Content-Type': 'application/json',
+            username: 'redlijovan@gmail.com',
+          },
+        })
+      );
 
-      const incomingMatches: Match[] = data;
+      // Normalize response shape
+      let incomingMatches: Match[] = Array.isArray(data)
+        ? (data as Match[])
+        : Array.isArray((data as any).matches)
+        ? (data as any).matches
+        : Array.isArray((data as any).data)
+        ? (data as any).data
+        : [];
 
       if (incomingMatches.length > 0) {
         const incomingIds = incomingMatches.map(m => String(m.id));
@@ -114,7 +153,7 @@ export function useMatches() {
         }
 
         lastGoodRef.current = incomingMatches;
-        
+
         if (!selectedSport && incomingMatches.length > 0) {
           const firstFootball = incomingMatches.find(m => isFootball(m.sport));
           setSelectedSport(
@@ -134,6 +173,8 @@ export function useMatches() {
       setLoading(false);
     } catch (err: any) {
       setLoading(false);
+    } finally {
+      inFlightRef.current = false;
     }
   }, [selectedSport]);
 
@@ -149,14 +190,16 @@ export function useMatches() {
   }, [fetchMatches]);
 
   // Build live key set for visible matches
-  const liveKeySet = useMemo(() => {
-    return new Set(matches.map(m => compositeKey(m)));
-  }, [matches]);
+  const liveKeySet = useMemo(
+    () => new Set(matches.map(m => compositeKey(m))),
+    [matches]
+  );
 
   // Filter favourites that are still visible
-  const favMatchKeys = useMemo(() => {
-    return favMatchKeysRaw.filter(k => liveKeySet.has(k));
-  }, [favMatchKeysRaw, liveKeySet]);
+  const favMatchKeys = useMemo(
+    () => favMatchKeysRaw.filter(k => liveKeySet.has(k)),
+    [favMatchKeysRaw, liveKeySet]
+  );
 
   // Prune old favourites
   useEffect(() => {
@@ -166,7 +209,7 @@ export function useMatches() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [favMatchKeys]);
 
-  // --- SPORTS (football first) ---
+  // SPORTS (football first)
   const sports = useMemo(() => {
     const acc: {
       key: string;
@@ -212,7 +255,7 @@ export function useMatches() {
     return list;
   }, [matches]);
 
-  // --- LEAGUES (A–Z, "All" first) ---
+  // LEAGUES (A–Z, "All" first)
   const leagues = useMemo(() => {
     if (!selectedSport || selectedSport === FAV_KEY) return [];
 
@@ -225,11 +268,7 @@ export function useMatches() {
       if (found) {
         found.count += 1;
       } else {
-        leagueStats.push({
-          key,
-          label: key,
-          count: 1,
-        });
+        leagueStats.push({ key, label: key, count: 1 });
       }
     }
 
@@ -241,7 +280,7 @@ export function useMatches() {
     ];
   }, [matches, selectedSport]);
 
-  // --- VISIBLE MATCHES ---
+  // VISIBLE MATCHES
   const visibleMatches = useMemo(() => {
     let base = matches;
 
@@ -256,12 +295,14 @@ export function useMatches() {
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      base = base.filter(
-        m =>
-          m.homeTeam.toLowerCase().includes(q) ||
-          m.awayTeam.toLowerCase().includes(q) ||
-          (m.league ?? '').toLowerCase().includes(q)
-      );
+      if (q.length > 2) {
+        base = base.filter(
+          m =>
+            m.homeTeam.toLowerCase().includes(q) ||
+            m.awayTeam.toLowerCase().includes(q) ||
+            (m.league ?? '').toLowerCase().includes(q)
+        );
+      }
     }
 
     const sorted = [...base];

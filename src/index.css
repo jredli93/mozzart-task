@@ -19,7 +19,7 @@ body {
 }
 
 .new-match-anim {
-  animation: newMatchPulse 1s ease-out forwards;
+  animation: newMatchPulse 2s ease-out forwards;
 }
 
 /* red warning for removed */

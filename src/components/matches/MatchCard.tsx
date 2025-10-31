@@ -1,8 +1,5 @@
 import type { Match } from '../../types/match';
-import {
-  formatBottomLeft,
-  statusLabel,
-} from '../../utils/formatters';
+import { formatBottomLeft, statusLabel } from '../../utils/formatters';
 import StarFull from '../../assets/star-full.png';
 import StarEmpty from '../../assets/star-empty.png';
 
@@ -21,8 +18,6 @@ export default function MatchCard({
   isFavourite,
   onToggleFavourite,
 }: MatchCardProps) {
-  // const isLive = match.status?.toLowerCase().includes('live');
-
   const statusText = statusLabel(match.status, match.matchTime);
   const statusClass =
     statusText === 'LIVE'
@@ -48,12 +43,10 @@ export default function MatchCard({
         </div>
 
         <div className="flex items-start gap-2">
-        
-          {/* favourite toggle with two images */}
           <button
             onClick={onToggleFavourite}
             className="shrink-0 h-5 w-5 flex items-center justify-center transition"
-            title={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
+            title={isFavourite ? 'Remove from favorites' : 'Add to favorites'}
           >
             <img
               src={isFavourite ? StarFull : StarEmpty}
@@ -66,19 +59,14 @@ export default function MatchCard({
 
       <div className="flex items-center justify-between text-white font-semibold text-sm">
         <span className="truncate">{match.homeTeam}</span>
-        <span className="text-lg tabular-nums">
-          {match.homeScore}
-        </span>
+        <span className="text-lg tabular-nums">{match.homeScore}</span>
       </div>
 
       <div className="flex items-center justify-between text-white font-semibold text-sm">
         <span className="truncate">{match.awayTeam}</span>
-        <span className="text-lg tabular-nums">
-          {match.awayScore}
-        </span>
+        <span className="text-lg tabular-nums">{match.awayScore}</span>
       </div>
 
-      {/* Bottom row: LEFT full date / minutes / '-' ; RIGHT status text */}
       <div className="mt-3 flex items-center justify-between text-[11px]">
         <span className="text-white/80 font-medium">
           {formatBottomLeft(match.status, match.matchTime)}
