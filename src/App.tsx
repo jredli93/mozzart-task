@@ -27,7 +27,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-white overflow-x-hidden">
-      <Header error={error} />
+      <Header />
 
       <MobileFilters
         sports={sports}

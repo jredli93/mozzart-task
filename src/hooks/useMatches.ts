@@ -105,7 +105,7 @@ export function useMatches() {
         })
       );
 
-      let incomingMatches: Match[] = Array.isArray(data)
+      const incomingMatches: Match[] = Array.isArray(data)
         ? (data as Match[])
         : Array.isArray((data as any).matches)
         ? (data as any).matches
