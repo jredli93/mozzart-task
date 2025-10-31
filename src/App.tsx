@@ -11,7 +11,6 @@ export default function App() {
     sports,
     leagues,
     loading,
-    error,
     selectedSport,
     setSelectedSport,
     selectedLeague,

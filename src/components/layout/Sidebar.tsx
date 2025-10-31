@@ -22,8 +22,6 @@ interface SidebarProps {
   selectedLeague: string | null;
   onSelectSport: (sport: string) => void;
   onSelectLeague: (league: string | null) => void;
-
-  // ⬇ make sure this exists
   favouriteCount: number;
 }
 

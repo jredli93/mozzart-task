@@ -42,7 +42,6 @@ function buildRows<T>(items: T[], cols: number): T[][] {
   return rows;
 }
 
-// Mirror composite key used elsewhere
 const compositeKey = (m: Match) =>
   `${String(m.id)}_${m.matchTime ? new Date(m.matchTime).toISOString() : ''}`;
 

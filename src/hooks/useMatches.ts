@@ -12,19 +12,16 @@ export type SortOption =
 
 const FAV_MATCHES_KEY = '__FAV_MATCH_IDS__';
 
-// ---------- tiny retry helpers (inline; no extra files) ----------
 async function fetchJsonSimple<T>(url: string, init?: RequestInit) {
   const res = await fetch(url, init);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as T;
 }
-
-/** Minimal exponential backoff with full jitter (AWS style) */
 async function retry<T>(
   fn: () => Promise<T>,
-  attempts = 4, // total attempts
-  baseMs = 400, // 400, 800, 1600, ...
-  capMs = 4000 // cap backoff
+  attempts = 4,
+  baseMs = 400,
+  capMs = 4000 
 ): Promise<T> {
   let lastErr: unknown;
   for (let i = 0; i < attempts; i++) {
@@ -34,15 +31,13 @@ async function retry<T>(
       lastErr = err;
       if (i === attempts - 1) break;
       const maxDelay = Math.min(capMs, baseMs * 2 ** i);
-      const delay = Math.floor(Math.random() * maxDelay); // full jitter
+      const delay = Math.floor(Math.random() * maxDelay); 
       await new Promise(r => setTimeout(r, delay));
     }
   }
   throw lastErr instanceof Error ? lastErr : new Error('Retry failed');
 }
-// -----------------------------------------------------------------
 
-// Stable alphabetical comparator (A–Z) with sensible tie-breakers
 function cmpAlphaAsc(a: Match, b: Match) {
   let cmp = a.homeTeam.localeCompare(b.homeTeam);
   if (cmp) return cmp;
@@ -53,7 +48,6 @@ function cmpAlphaAsc(a: Match, b: Match) {
   return String(a.id).localeCompare(String(b.id));
 }
 
-// Composite key (id + matchTime)
 function compositeKey(m: Match | { id: string | number; matchTime?: string }) {
   const id = String(m.id);
   const t = m.matchTime ? new Date(m.matchTime).toISOString() : '';
@@ -68,7 +62,6 @@ export function useMatches() {
   const [sortOption, setSortOption] = useState<SortOption>('alpha');
   const [loading, setLoading] = useState(true);
 
-  // Favourites stored as composite keys
   const [favMatchKeysRaw, setFavMatchKeysRaw] = useState<string[]>(() => {
     try {
       const raw = localStorage.getItem(FAV_MATCHES_KEY);
@@ -83,14 +76,12 @@ export function useMatches() {
   const [removalIds, setRemovalIds] = useState<string[]>([]);
   const lastGoodRef = useRef<Match[]>([]);
   const pollRef = useRef<number | null>(null);
-  const inFlightRef = useRef(false); // avoid overlapping polls
+  const inFlightRef = useRef(false);
 
-  // Persist favourites
   useEffect(() => {
     localStorage.setItem(FAV_MATCHES_KEY, JSON.stringify(favMatchKeysRaw));
   }, [favMatchKeysRaw]);
 
-  // Toggle favourite
   const toggleFavourite = useCallback((match: Match) => {
     const key = compositeKey(match);
     setFavMatchKeysRaw(prev =>
@@ -98,7 +89,6 @@ export function useMatches() {
     );
   }, []);
 
-  // Polling logic + minimal retry
   const fetchMatches = useCallback(async () => {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
@@ -115,7 +105,6 @@ export function useMatches() {
         })
       );
 
-      // Normalize response shape
       let incomingMatches: Match[] = Array.isArray(data)
         ? (data as Match[])
         : Array.isArray((data as any).matches)
@@ -131,7 +120,6 @@ export function useMatches() {
         const goneOnes = prevIds.filter(id => !incomingIds.includes(id));
         prevIdsRef.current = incomingIds;
 
-        // NEW (green)
         if (newOnes.length > 0) {
           newMatchIdsRef.current = [...newMatchIdsRef.current, ...newOnes];
           setTimeout(() => {
@@ -141,7 +129,6 @@ export function useMatches() {
           }, 1000);
         }
 
-        // REMOVED (red)
         if (goneOnes.length > 0) {
           setRemovalIds(goneOnes);
           setTimeout(() => {
@@ -189,27 +176,22 @@ export function useMatches() {
     };
   }, [fetchMatches]);
 
-  // Build live key set for visible matches
   const liveKeySet = useMemo(
     () => new Set(matches.map(m => compositeKey(m))),
     [matches]
   );
 
-  // Filter favourites that are still visible
   const favMatchKeys = useMemo(
     () => favMatchKeysRaw.filter(k => liveKeySet.has(k)),
     [favMatchKeysRaw, liveKeySet]
   );
 
-  // Prune old favourites
   useEffect(() => {
     if (favMatchKeys.length !== favMatchKeysRaw.length) {
       setFavMatchKeysRaw(favMatchKeys);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [favMatchKeys]);
 
-  // SPORTS (football first)
   const sports = useMemo(() => {
     const acc: {
       key: string;
@@ -255,7 +237,6 @@ export function useMatches() {
     return list;
   }, [matches]);
 
-  // LEAGUES (A–Z, "All" first)
   const leagues = useMemo(() => {
     if (!selectedSport || selectedSport === FAV_KEY) return [];
 
@@ -280,7 +261,6 @@ export function useMatches() {
     ];
   }, [matches, selectedSport]);
 
-  // VISIBLE MATCHES
   const visibleMatches = useMemo(() => {
     let base = matches;
 
