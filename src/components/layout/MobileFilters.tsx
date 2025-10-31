@@ -51,7 +51,7 @@ export default function MobileFilters({
             transition-colors duration-200 active:scale-[0.98]
             ${
               selectedSport === s.key
-                ? 'border-yellow bg-gray/10 text-white font-semibold'
+                ? 'border-white bg-gray/10 text-white font-semibold'
                 : 'border-white/10 bg-[#2a314b] text-white/80'
             }`}
           >

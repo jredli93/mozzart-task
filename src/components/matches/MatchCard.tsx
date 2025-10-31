@@ -18,7 +18,13 @@ export default function MatchCard({
   isFavourite,
   onToggleFavourite,
 }: MatchCardProps) {
-  const statusText = statusLabel(match.status, match.matchTime);
+  const statusText = statusLabel(
+    match.status,
+    match.matchTime,
+    match.sport,
+    match.league
+  );
+
   const statusClass =
     statusText === 'LIVE'
       ? 'text-green-400'
@@ -69,7 +75,12 @@ export default function MatchCard({
 
       <div className="mt-3 flex items-center justify-between text-[11px]">
         <span className="text-white/80 font-medium">
-          {formatBottomLeft(match.status, match.matchTime)}
+          {formatBottomLeft(
+            match.status,
+            match.matchTime,
+            match.sport,
+            match.league
+          )}
         </span>
         <span className={statusClass}>{statusText}</span>
       </div>

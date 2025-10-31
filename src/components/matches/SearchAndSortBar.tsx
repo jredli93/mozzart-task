@@ -20,13 +20,13 @@ export default function SearchAndSortBar({
         value={searchQuery}
         onChange={e => onSearchChange(e.target.value)}
         placeholder="Search by team name..."
-        className="w-full md:w-[320px]  bg-[#1e253b] border border-white/10 px-4 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-yellow"
+        className="w-full md:w-[320px]  bg-[#1e253b] border border-white/10 px-4 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white"
       />
 
       <select
         value={sortOption}
         onChange={e => onSortChange(e.target.value as SortOption)}
-        className=" bg-[#1e253b] border border-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-yellow"
+        className=" bg-[#1e253b] border border-white/10 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-white"
       >
         <option value="timeAsc">Match Time ↑</option>
         <option value="timeDesc">Match Time ↓</option>
